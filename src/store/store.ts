@@ -87,5 +87,3 @@ export const useCartStore = create<CartState>((set, get) => ({
     return get().items.reduce((total, item) => total + item.quantity, 0);
   },
 }));
-
-<lov-add-dependency>zustand@4.4.5</lov-add-dependency>
