@@ -1,7 +1,22 @@
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
+
+// Simple AnimatePresence replacement
+const AnimatePresence = ({ children }) => children;
+
+// Simple motion.div replacement
+const MotionDiv = ({ 
+  children, 
+  initial = {}, 
+  animate = {}, 
+  exit = {},
+  transition = {},
+  className = "",
+  key
+}) => (
+  <div className={className} key={key}>{children}</div>
+);
 
 interface ToteBagPreviewProps {
   logoUrl: string | null;
@@ -25,7 +40,7 @@ const ToteBagPreview = ({ logoUrl, isGenerating }: ToteBagPreviewProps) => {
     <div className="relative aspect-[3/4] w-full max-w-md mx-auto">
       {/* Tote bag base */}
       <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/30 border border-border shadow-sm">
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="w-full h-full bg-[#F8F7F4] relative"
@@ -40,7 +55,7 @@ const ToteBagPreview = ({ logoUrl, isGenerating }: ToteBagPreviewProps) => {
           <div className="absolute top-16 left-4 right-4 bottom-4 bg-[#F8F7F4] border border-[#E8E6E1] rounded-b-lg flex items-center justify-center">
             <AnimatePresence mode="wait">
               {isGenerating ? (
-                <motion.div
+                <MotionDiv
                   key="loading"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -51,9 +66,9 @@ const ToteBagPreview = ({ logoUrl, isGenerating }: ToteBagPreviewProps) => {
                   <p className="mt-4 text-sm text-muted-foreground">
                     Generating your design...
                   </p>
-                </motion.div>
+                </MotionDiv>
               ) : logoUrl ? (
-                <motion.div
+                <MotionDiv
                   key="logo"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: isLogoLoaded ? 1 : 0 }}
@@ -69,9 +84,9 @@ const ToteBagPreview = ({ logoUrl, isGenerating }: ToteBagPreviewProps) => {
                     }`}
                     onLoad={() => setIsLogoLoaded(true)}
                   />
-                </motion.div>
+                </MotionDiv>
               ) : (
-                <motion.div
+                <MotionDiv
                   key="placeholder"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -81,11 +96,11 @@ const ToteBagPreview = ({ logoUrl, isGenerating }: ToteBagPreviewProps) => {
                   <p className="text-sm text-muted-foreground">
                     Enter a prompt to generate a design
                   </p>
-                </motion.div>
+                </MotionDiv>
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
+        </MotionDiv>
       </div>
       
       {/* Reflection effect */}

@@ -1,13 +1,25 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+// Let's replace the direct import with a conditional one
+// import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Info } from "lucide-react";
 import ToteBagPreview from "@/components/ToteBagPreview";
 import PromptInput from "@/components/PromptInput";
 import { useToteStore } from "@/store/store";
 import { toast } from "sonner";
+
+// Create a simple motion component replacement to avoid dependency issues
+const MotionDiv = ({ 
+  children, 
+  className = "",
+  initial = {}, 
+  animate = {}, 
+  transition = {}
+}) => (
+  <div className={className}>{children}</div>
+);
 
 const Customize = () => {
   const navigate = useNavigate();
@@ -36,7 +48,7 @@ const Customize = () => {
   return (
     <div className="min-h-screen pt-16">
       <div className="page-container">
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -46,19 +58,19 @@ const Customize = () => {
           <p className="body-text">
             Describe the design you'd like to see on your tote bag, and our AI will bring it to life. Be as specific or creative as you like!
           </p>
-        </motion.div>
+        </MotionDiv>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 max-w-5xl mx-auto">
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
             className="flex flex-col"
           >
             <ToteBagPreview logoUrl={logoUrl} isGenerating={isGenerating} />
-          </motion.div>
+          </MotionDiv>
           
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
@@ -88,7 +100,7 @@ const Customize = () => {
                 Continue to Preview <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
-          </motion.div>
+          </MotionDiv>
         </div>
       </div>
     </div>

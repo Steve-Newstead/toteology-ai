@@ -15,23 +15,6 @@ const Preview = lazy(() => import("./pages/Preview"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-// Properly type the AnimatePresence component
-const AnimatePresence = ({ children }: { children: React.ReactNode }) => <>{children}</>;
-
-// We'll use useEffect to load framer-motion asynchronously
-// This is commented out until we're ready to properly integrate it
-/*
-useEffect(() => {
-  import("framer-motion")
-    .then((framerMotion) => {
-      AnimatePresence = framerMotion.AnimatePresence;
-    })
-    .catch(error => {
-      console.error("Failed to load framer-motion:", error);
-    });
-}, []);
-*/
-
 const queryClient = new QueryClient();
 
 const App = () => (

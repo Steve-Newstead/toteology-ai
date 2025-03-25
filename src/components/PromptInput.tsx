@@ -1,11 +1,21 @@
 
 import { useState, FormEvent } from "react";
-import { motion } from "framer-motion";
 import { useToteStore } from "@/store/store";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+
+// Simple motion.div replacement
+const MotionDiv = ({ 
+  children, 
+  initial = {}, 
+  animate = {}, 
+  transition = {},
+  className = "" 
+}) => (
+  <div className={className}>{children}</div>
+);
 
 interface PromptInputProps {
   className?: string;
@@ -46,7 +56,7 @@ const PromptInput = ({ className = "" }: PromptInputProps) => {
   ];
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -111,7 +121,7 @@ const PromptInput = ({ className = "" }: PromptInputProps) => {
           ))}
         </div>
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 };
 

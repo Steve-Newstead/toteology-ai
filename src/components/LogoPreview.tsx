@@ -1,7 +1,22 @@
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
+
+// Simple AnimatePresence replacement
+const AnimatePresence = ({ children }) => children;
+
+// Simple motion.div replacement
+const MotionDiv = ({ 
+  children, 
+  initial = {}, 
+  animate = {}, 
+  exit = {},
+  transition = {},
+  className = "",
+  key
+}) => (
+  <div className={className} key={key}>{children}</div>
+);
 
 interface LogoPreviewProps {
   logoUrl: string | null;
@@ -26,7 +41,7 @@ const LogoPreview = ({ logoUrl, isGenerating, className = "" }: LogoPreviewProps
     <div className={`relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-secondary/30 ${className}`}>
       <AnimatePresence mode="wait">
         {isGenerating ? (
-          <motion.div
+          <MotionDiv
             key="loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -37,9 +52,9 @@ const LogoPreview = ({ logoUrl, isGenerating, className = "" }: LogoPreviewProps
             <p className="mt-4 text-sm text-muted-foreground">
               Generating your design...
             </p>
-          </motion.div>
+          </MotionDiv>
         ) : logoUrl ? (
-          <motion.div
+          <MotionDiv
             key="logo"
             initial={{ opacity: 0 }}
             animate={{ opacity: isLogoLoaded ? 1 : 0 }}
@@ -55,9 +70,9 @@ const LogoPreview = ({ logoUrl, isGenerating, className = "" }: LogoPreviewProps
               }`}
               onLoad={() => setIsLogoLoaded(true)}
             />
-          </motion.div>
+          </MotionDiv>
         ) : (
-          <motion.div
+          <MotionDiv
             key="placeholder"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -67,7 +82,7 @@ const LogoPreview = ({ logoUrl, isGenerating, className = "" }: LogoPreviewProps
             <p className="text-sm text-muted-foreground">
               Your design will appear here
             </p>
-          </motion.div>
+          </MotionDiv>
         )}
       </AnimatePresence>
     </div>
