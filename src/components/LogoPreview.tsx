@@ -8,10 +8,6 @@ const AnimatePresence = ({ children }) => children;
 // Simple motion.div replacement
 const MotionDiv = ({ 
   children, 
-  initial = {}, 
-  animate = {}, 
-  exit = {},
-  transition = {},
   className = "",
   key
 }) => (
@@ -38,35 +34,28 @@ const LogoPreview = ({ logoUrl, isGenerating, className = "" }: LogoPreviewProps
   }, [logoUrl]);
 
   return (
-    <div className={`relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-secondary/30 ${className}`}>
+    <div className={`relative aspect-square w-full overflow-hidden rounded-sm border border-[#e2e2e2] bg-[#f9f9f9] ${className}`}>
       <AnimatePresence mode="wait">
         {isGenerating ? (
           <MotionDiv
             key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
             className="flex h-full w-full flex-col items-center justify-center p-4 text-center"
           >
-            <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">
+            <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
+            <p className="mt-4 text-sm text-gray-500">
               Generating your design...
             </p>
           </MotionDiv>
         ) : logoUrl ? (
           <MotionDiv
             key="logo"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: isLogoLoaded ? 1 : 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
             className="flex h-full w-full items-center justify-center p-4"
           >
             <img
               src={logoUrl}
               alt="Generated logo"
               className={`h-full w-full object-contain transition-all duration-500 ${
-                isLogoLoaded ? "image-loaded" : "image-loading"
+                isLogoLoaded ? "opacity-100" : "opacity-0"
               }`}
               onLoad={() => setIsLogoLoaded(true)}
             />
@@ -74,12 +63,9 @@ const LogoPreview = ({ logoUrl, isGenerating, className = "" }: LogoPreviewProps
         ) : (
           <MotionDiv
             key="placeholder"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
             className="flex h-full w-full flex-col items-center justify-center p-4 text-center"
           >
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-500">
               Your design will appear here
             </p>
           </MotionDiv>
