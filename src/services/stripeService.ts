@@ -3,7 +3,7 @@ import { loadStripe } from '@stripe/stripe-js';
 
 // Stripe publishable key (test mode)
 // This is a publishable key, so it's safe to include in the client-side code
-const STRIPE_PUBLISHABLE_KEY = 'pk_test_51OqTpaBdFzlMFH9XFvVwGp6gI0R6p1VEeM1Uu5qkEDcLnThZ9NMFN0QdYIBmARkn1RfW2FhKG3jJrGMoQHLRqCxj00M4U9Hwl1';
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51R7OuiIZcV6xBCiCu9ekAPSfvD5xyqUnYA59pZcqkFQXnIWsiPRHkzynHTjit2b60LRDV5BsgBjW79d2TFjg3VJL00sAoNlbUA';
 
 // Initialize Stripe
 export const getStripePromise = () => {
