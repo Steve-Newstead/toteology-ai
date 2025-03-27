@@ -1,6 +1,7 @@
 
 import { create } from 'zustand';
 import { placeOrder, getShippingRates } from '@/services/printifyService';
+import { processPayment } from '@/services/stripeService';
 import { toast } from 'sonner';
 
 interface ToteState {
@@ -132,6 +133,7 @@ interface CheckoutState {
   setStep: (step: 'shipping' | 'payment' | 'review' | 'confirmation') => void;
   setShippingInfo: (info: Partial<CheckoutState['shippingInfo']>) => void;
   setBillingInfo: (info: Partial<CheckoutState['billingInfo']>) => void;
+  processPayment: (paymentMethodId: string, amount: number, email: string) => Promise<any>;
   placeOrder: () => Promise<void>;
   reset: () => void;
 }
@@ -157,6 +159,18 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   setBillingInfo: (info) => set((state) => ({
     billingInfo: { ...state.billingInfo, ...info }
   })),
+  processPayment: async (paymentMethodId, amount, email) => {
+    set({ isProcessing: true });
+    try {
+      // Use the Stripe service to process payment
+      const result = await processPayment(paymentMethodId, amount, email);
+      set({ isProcessing: false });
+      return result;
+    } catch (error) {
+      set({ isProcessing: false });
+      throw error;
+    }
+  },
   placeOrder: async () => {
     const state = get();
     const cartStore = useCartStore.getState();
@@ -179,7 +193,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         return;
       }
       
-      // Call Printify mock service
+      // Call Printify mock service for order processing
       const result = await placeOrder({
         product: {
           id: "tote-bag-standard",

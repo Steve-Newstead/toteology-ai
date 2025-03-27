@@ -1,7 +1,6 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -14,21 +13,84 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { useCartStore } from "@/store/store";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { processPayment } from "@/services/stripeService";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+
+// Define form schema
+const checkoutFormSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  address: z.string().min(1, "Address is required"),
+  city: z.string().min(1, "City is required"),
+  postalCode: z.string().min(1, "Postal code is required"),
+  country: z.string().min(1, "Country is required"),
+  cardNumber: z.string().min(1, "Card number is required"),
+  expiration: z.string().min(1, "Expiration date is required"),
+  cvc: z.string().min(1, "CVC is required"),
+});
+
+type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { items, removeItem, addItem, totalPrice, totalItems, clearCart } = useCartStore();
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Initialize form with react-hook-form
+  const form = useForm<CheckoutFormValues>({
+    resolver: zodResolver(checkoutFormSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: user?.email || "",
+      address: "",
+      city: "",
+      postalCode: "",
+      country: "",
+      cardNumber: "",
+      expiration: "",
+      cvc: "",
+    },
+  });
   
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleCheckout = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success("Order placed successfully! Thank you for your purchase.");
-    clearCart();
-    navigate("/");
+  const handleCheckout = async (values: CheckoutFormValues) => {
+    try {
+      setIsProcessing(true);
+      
+      // Mock payment method ID (in production this would come from Stripe Elements)
+      const mockPaymentMethodId = `pm_${Math.random().toString(36).substring(2, 15)}`;
+      
+      // Process the payment
+      const paymentResult = await processPayment(
+        mockPaymentMethodId,
+        totalPrice() + 5.99 + totalPrice() * 0.07,
+        values.email
+      );
+      
+      if (paymentResult.success) {
+        toast.success("Payment successful! Thank you for your purchase.");
+        clearCart();
+        navigate("/");
+      } else {
+        toast.error("Payment failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error("An error occurred while processing your payment.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const formatPrice = (price: number) => {
@@ -52,10 +114,7 @@ const Checkout = () => {
     return (
       <div className="min-h-screen pt-16">
         <div className="page-container">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+          <div
             className="max-w-lg mx-auto text-center py-12"
           >
             <ShoppingBag className="h-16 w-16 mx-auto mb-6 text-muted-foreground/50" />
@@ -66,7 +125,7 @@ const Checkout = () => {
             <Button asChild size="lg">
               <a href="/customize">Create a Design</a>
             </Button>
-          </motion.div>
+          </div>
         </div>
       </div>
     );
@@ -75,31 +134,22 @@ const Checkout = () => {
   return (
     <div className="min-h-screen pt-16">
       <div className="page-container">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+        <div
           className="max-w-lg mx-auto text-center mb-8"
         >
           <h1 className="heading-2 mb-4">Checkout</h1>
           <p className="body-text">Complete your order and get ready to enjoy your custom tote bag.</p>
-        </motion.div>
+        </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-          >
+          <div>
             <div className="space-y-6">
               <h2 className="heading-3">Your Cart</h2>
               
               <div className="space-y-4">
                 {items.map((item) => (
-                  <motion.div
+                  <div
                     key={item.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
                     className="flex space-x-4 rounded-lg border border-border bg-card p-4"
                   >
                     <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-border">
@@ -148,7 +198,7 @@ const Checkout = () => {
                         </Button>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
               
@@ -181,147 +231,191 @@ const Checkout = () => {
                 Continue Shopping
               </Button>
             </div>
-          </motion.div>
+          </div>
           
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-          >
-            <form onSubmit={handleCheckout} className="space-y-6">
-              <h2 className="heading-3">Shipping Information</h2>
-              
-              <div className="rounded-lg border border-border bg-card p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="firstName" className="text-sm font-medium">
-                      First Name
-                    </label>
-                    <Input
-                      id="firstName"
-                      type="text"
-                      required
+          <div>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleCheckout)} className="space-y-6">
+                <h2 className="heading-3">Shipping Information</h2>
+                
+                <div className="rounded-lg border border-border bg-card p-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>First Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Last Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label htmlFor="lastName" className="text-sm font-medium">
-                      Last Name
-                    </label>
-                    <Input
-                      id="lastName"
-                      type="text"
-                      required
+                  
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Address</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="postalCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Postal Code</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    required
+                  
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="address" className="text-sm font-medium">
-                    Address
-                  </label>
-                  <Input
-                    id="address"
-                    type="text"
-                    required
+                
+                <h2 className="heading-3">Payment Information</h2>
+                
+                <div className="rounded-lg border border-border bg-card p-6 space-y-4">
+                  <div className="flex items-center mb-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium">Secure payment via Stripe</span>
+                      <img src="https://cdn.jsdelivr.net/gh/stephenhutchings/typicons.font@v2.0.7/src/svg/lock-closed.svg" alt="secure" className="h-4 w-4" />
+                    </div>
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="cardNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Card Number</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="1234 5678 9012 3456" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="city" className="text-sm font-medium">
-                      City
-                    </label>
-                    <Input
-                      id="city"
-                      type="text"
-                      required
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="expiration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Expiration Date</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="MM/YY" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="postalCode" className="text-sm font-medium">
-                      Postal Code
-                    </label>
-                    <Input
-                      id="postalCode"
-                      type="text"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="country" className="text-sm font-medium">
-                    Country
-                  </label>
-                  <Input
-                    id="country"
-                    type="text"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <h2 className="heading-3">Payment Information</h2>
-              
-              <div className="rounded-lg border border-border bg-card p-6 space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="cardNumber" className="text-sm font-medium">
-                    Card Number
-                  </label>
-                  <Input
-                    id="cardNumber"
-                    type="text"
-                    placeholder="1234 5678 9012 3456"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="expiration" className="text-sm font-medium">
-                      Expiration Date
-                    </label>
-                    <Input
-                      id="expiration"
-                      type="text"
-                      placeholder="MM/YY"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="cvc" className="text-sm font-medium">
-                      CVC
-                    </label>
-                    <Input
-                      id="cvc"
-                      type="text"
-                      placeholder="123"
-                      required
+                    <FormField
+                      control={form.control}
+                      name="cvc"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CVC</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="123" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <ShieldCheck className="h-5 w-5" />
-                <span>All payment information is encrypted and secure</span>
-              </div>
-              
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full"
-              >
-                Complete Order <CreditCard className="ml-2 h-4 w-4" />
-              </Button>
-            </form>
-          </motion.div>
+                
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <ShieldCheck className="h-5 w-5" />
+                  <span>All payment information is encrypted and secure</span>
+                </div>
+                
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full"
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? "Processing..." : "Complete Order"} <CreditCard className="ml-2 h-4 w-4" />
+                </Button>
+                
+                <div className="flex justify-center space-x-2 mt-4">
+                  <img src="https://www.vectorlogo.zone/logos/visa/visa-icon.svg" alt="visa" className="h-6" />
+                  <img src="https://www.vectorlogo.zone/logos/mastercard/mastercard-icon.svg" alt="mastercard" className="h-6" />
+                  <img src="https://www.vectorlogo.zone/logos/americanexpress/americanexpress-icon.svg" alt="amex" className="h-6" />
+                </div>
+              </form>
+            </Form>
+          </div>
         </div>
       </div>
     </div>
