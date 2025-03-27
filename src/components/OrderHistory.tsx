@@ -69,11 +69,11 @@ export function OrderHistory() {
                 year: 'numeric'
               }),
               status: order.status.charAt(0).toUpperCase() + order.status.slice(1),
-              total: `$${parseFloat(order.total_amount).toFixed(2)}`,
+              total: `$${parseFloat(order.total_amount.toString()).toFixed(2)}`,
               items: itemsData.map(item => ({
                 id: item.id,
                 name: item.name,
-                price: `$${parseFloat(item.price).toFixed(2)}`,
+                price: `$${parseFloat(item.price.toString()).toFixed(2)}`,
                 imageUrl: item.image_url || 'https://picsum.photos/seed/placeholder/200',
               }))
             };

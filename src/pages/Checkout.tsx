@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { useCartStore } from "@/store/store";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { processPayment } from "@/services/stripeService";
+import { placeOrder } from "@/services/printifyService";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
