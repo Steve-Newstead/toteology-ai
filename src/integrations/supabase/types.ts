@@ -9,7 +9,104 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      order_items: {
+        Row: {
+          id: string
+          image_url: string | null
+          logo_prompt: string | null
+          name: string
+          order_id: string
+          price: number
+          quantity: number
+          variant_id: string | null
+          variant_name: string | null
+        }
+        Insert: {
+          id?: string
+          image_url?: string | null
+          logo_prompt?: string | null
+          name: string
+          order_id: string
+          price: number
+          quantity: number
+          variant_id?: string | null
+          variant_name?: string | null
+        }
+        Update: {
+          id?: string
+          image_url?: string | null
+          logo_prompt?: string | null
+          name?: string
+          order_id?: string
+          price?: number
+          quantity?: number
+          variant_id?: string | null
+          variant_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          billing_address: Json | null
+          created_at: string
+          id: string
+          payment_intent_id: string | null
+          shipping_address: Json
+          status: string
+          total_amount: number
+          user_id: string | null
+        }
+        Insert: {
+          billing_address?: Json | null
+          created_at?: string
+          id?: string
+          payment_intent_id?: string | null
+          shipping_address: Json
+          status?: string
+          total_amount: number
+          user_id?: string | null
+        }
+        Update: {
+          billing_address?: Json | null
+          created_at?: string
+          id?: string
+          payment_intent_id?: string | null
+          shipping_address?: Json
+          status?: string
+          total_amount?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

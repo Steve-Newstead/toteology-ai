@@ -1,15 +1,12 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -30,45 +27,57 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    // Check for saved user in localStorage
-    const savedUser = localStorage.getItem('user');
-    const guestMode = localStorage.getItem('guestMode');
-    
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsGuest(false);
-    } else if (guestMode === 'true') {
-      setIsGuest(true);
-    }
-    
-    setIsLoading(false);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session) {
+          setIsGuest(false);
+          localStorage.removeItem('guestMode');
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session) {
+        setIsGuest(false);
+      } else {
+        const guestMode = localStorage.getItem('guestMode');
+        if (guestMode === 'true') {
+          setIsGuest(true);
+        }
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
       
-      // This is mocked authentication
-      // In a real app, you'd make a fetch request to your backend
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
       
-      // Mock validation for demo purposes
-      if (email === 'demo@example.com' && password === 'password') {
-        const newUser = { id: '1', email, name: 'Demo User' };
-        setUser(newUser);
-        setIsGuest(false);
-        localStorage.setItem('user', JSON.stringify(newUser));
-        localStorage.removeItem('guestMode');
-        toast.success('Successfully logged in');
-        return true;
+      if (error) {
+        toast.error(error.message);
+        return false;
       }
       
-      toast.error('Invalid email or password');
-      return false;
+      toast.success('Successfully logged in');
+      return true;
     } catch (error) {
       console.error('Login error:', error);
       toast.error('An error occurred during login');
@@ -82,15 +91,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       
-      // Mock registration
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          }
+        }
+      });
       
-      const newUser = { id: Date.now().toString(), email, name };
-      setUser(newUser);
-      setIsGuest(false);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      localStorage.removeItem('guestMode');
-      toast.success('Registration successful');
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
+      
+      toast.success('Registration successful! Please check your email to confirm your account.');
       return true;
     } catch (error) {
       console.error('Registration error:', error);
@@ -101,12 +117,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsGuest(false);
-    localStorage.removeItem('user');
-    localStorage.removeItem('guestMode');
-    toast.success('Logged out successfully');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      setIsGuest(false);
+      localStorage.removeItem('guestMode');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('An error occurred during logout');
+    }
   };
 
   const continueAsGuest = () => {
@@ -118,6 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AuthContext.Provider value={{ 
       user, 
+      session,
       login, 
       register, 
       logout, 

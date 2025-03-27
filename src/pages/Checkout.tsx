@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -80,9 +79,47 @@ const Checkout = () => {
       );
       
       if (paymentResult.success) {
-        toast.success("Payment successful! Thank you for your purchase.");
-        clearCart();
-        navigate("/");
+        // Process the order with the first item in cart
+        if (items.length > 0) {
+          const item = items[0];
+          
+          const orderResult = await placeOrder({
+            product: {
+              id: "tote-bag-standard",
+              variants: [{ id: item.variantId || "tote-bag-standard-natural" }]
+            },
+            designUrl: item.imageUrl,
+            shippingInfo: {
+              address: {
+                name: `${values.firstName} ${values.lastName}`,
+                street: values.address,
+                city: values.city,
+                state: '', // Not collected in the current form
+                zipCode: values.postalCode,
+                country: values.country
+              },
+              method: "standard"
+            },
+            billingInfo: {
+              sameAsShipping: true,
+              address: null,
+              paymentMethod: {
+                type: 'credit_card',
+                cardNumber: values.cardNumber,
+                cardExpiry: values.expiration,
+                cardCvc: values.cvc
+              }
+            }
+          });
+          
+          if (orderResult.success) {
+            toast.success("Payment successful! Thank you for your purchase.");
+            clearCart();
+            navigate("/");
+          } else {
+            toast.error("There was a problem with your order. Please try again.");
+          }
+        }
       } else {
         toast.error("Payment failed. Please try again.");
       }

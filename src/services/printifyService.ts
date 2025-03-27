@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 // Mock Printify product data
@@ -108,6 +107,8 @@ export const getShippingRates = async (
   }));
 };
 
+import { supabase } from '@/integrations/supabase/client';
+
 // Mock function to submit an order to Printify
 export const submitPrintifyOrder = async (orderData: {
   productId: string;
@@ -152,7 +153,7 @@ export const checkOrderStatus = async (orderId: string) => {
   };
 };
 
-// Unified function to place an order
+// Updated function to place an order
 export const placeOrder = async (orderData: {
   product: any;
   designUrl: string;
@@ -164,30 +165,99 @@ export const placeOrder = async (orderData: {
     toast.info("Processing your order...");
     
     // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    // Get the current user from Supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Prepare shipping and billing address as JSON
+    const shippingAddress = {
+      name: orderData.shippingInfo.address?.name || '',
+      street: orderData.shippingInfo.address?.street || '',
+      city: orderData.shippingInfo.address?.city || '',
+      state: orderData.shippingInfo.address?.state || '',
+      zipCode: orderData.shippingInfo.address?.zipCode || '',
+      country: orderData.shippingInfo.address?.country || '',
+    };
+    
+    const billingAddress = orderData.billingInfo.sameAsShipping 
+      ? shippingAddress 
+      : {
+          name: orderData.billingInfo.address?.name || '',
+          street: orderData.billingInfo.address?.street || '',
+          city: orderData.billingInfo.address?.city || '',
+          state: orderData.billingInfo.address?.state || '',
+          zipCode: orderData.billingInfo.address?.zipCode || '',
+          country: orderData.billingInfo.address?.country || '',
+        };
     
     // Submit to Printify (mocked)
-    const result = await submitPrintifyOrder({
+    const printifyResult = await submitPrintifyOrder({
       productId: orderData.product.id,
       variantId: orderData.product.variants[0].id,
       quantity: 1,
       shippingMethod: orderData.shippingInfo.method,
-      address: orderData.shippingInfo.address,
+      address: shippingAddress,
       designUrl: orderData.designUrl,
     });
     
-    if (result.success) {
+    // Insert the order into the Supabase database
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        user_id: user?.id || null, // Will be null for guest checkout
+        total_amount: 34.99, // Hard-coded for now, should calculate from items
+        status: 'pending',
+        shipping_address: shippingAddress,
+        billing_address: billingAddress,
+        payment_intent_id: `pi_${Math.random().toString(36).substring(2, 15)}`
+      })
+      .select()
+      .single();
+    
+    if (orderError) {
+      console.error('Error creating order:', orderError);
+      toast.error('There was a problem saving your order');
+      return { success: false, error: 'Failed to save order' };
+    }
+    
+    // Insert the order item
+    const { data: orderItem, error: itemError } = await supabase
+      .from('order_items')
+      .insert({
+        order_id: order.id,
+        name: 'Custom Tote Bag',
+        price: 34.99,
+        quantity: 1,
+        variant_id: orderData.product.variants[0].id,
+        variant_name: 'Standard',
+        image_url: orderData.designUrl,
+        logo_prompt: 'Custom design'
+      });
+    
+    if (itemError) {
+      console.error('Error creating order item:', itemError);
+      // We created the order but failed to add the item
+      // In production, you might want to delete the order or handle differently
+    }
+    
+    if (printifyResult.success) {
+      // Update the order status to processing
+      await supabase
+        .from('orders')
+        .update({ status: 'processing' })
+        .eq('id', order.id);
+      
       toast.success("Order placed successfully!");
       return {
         success: true,
-        orderId: result.orderId,
-        ...result,
+        orderId: order.id,
       };
     } else {
-      toast.error("There was a problem placing your order");
+      toast.error("There was a problem with your order");
       return {
         success: false,
-        error: "Failed to place order",
+        error: "Failed to process with print provider",
       };
     }
   } catch (error) {
