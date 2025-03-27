@@ -35,7 +35,7 @@ const LogoPreview = ({ logoUrl, isGenerating, className = "" }: LogoPreviewProps
 
   return (
     <div className={`relative aspect-square w-full overflow-hidden rounded-sm border border-[#e2e2e2] bg-[#f9f9f9] ${className}`}>
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {isGenerating ? (
           <MotionDiv
             key="loading"

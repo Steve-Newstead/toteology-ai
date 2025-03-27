@@ -41,6 +41,7 @@ const ToteBagPreview = ({ logoUrl, isGenerating }: ToteBagPreviewProps) => {
       {/* Tote bag base */}
       <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/30 border border-border shadow-sm">
         <MotionDiv
+          key="tote-base"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="w-full h-full bg-[#F8F7F4] relative"
@@ -53,7 +54,7 @@ const ToteBagPreview = ({ logoUrl, isGenerating }: ToteBagPreviewProps) => {
           
           {/* Tote bag body */}
           <div className="absolute top-16 left-4 right-4 bottom-4 bg-[#F8F7F4] border border-[#E8E6E1] rounded-b-lg flex items-center justify-center">
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               {isGenerating ? (
                 <MotionDiv
                   key="loading"

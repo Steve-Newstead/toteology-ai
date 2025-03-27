@@ -206,7 +206,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       
       if (result.success) {
         set({ 
-          orderId: result.orderId,
+          orderId: result.success && 'orderId' in result ? result.orderId : null,
           step: 'confirmation',
           isProcessing: false,
         });
