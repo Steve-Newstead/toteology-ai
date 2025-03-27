@@ -24,6 +24,17 @@ const Account = lazy(() => import("./pages/Account"));
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
+  const { user, isGuest } = useAuth();
+  
+  if (!user && !isGuest) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+// Account-only protected route component
+const AccountProtectedRoute = ({ children }) => {
   const { user } = useAuth();
   
   if (!user) {
@@ -64,9 +75,9 @@ const App = () => (
                     <Route 
                       path="/account" 
                       element={
-                        <ProtectedRoute>
+                        <AccountProtectedRoute>
                           <Account />
-                        </ProtectedRoute>
+                        </AccountProtectedRoute>
                       } 
                     />
                     <Route path="*" element={<NotFound />} />

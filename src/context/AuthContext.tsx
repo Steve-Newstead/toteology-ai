@@ -14,6 +14,8 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
+  isGuest: boolean;
+  continueAsGuest: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,13 +31,20 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     // Check for saved user in localStorage
     const savedUser = localStorage.getItem('user');
+    const guestMode = localStorage.getItem('guestMode');
+    
     if (savedUser) {
       setUser(JSON.parse(savedUser));
+      setIsGuest(false);
+    } else if (guestMode === 'true') {
+      setIsGuest(true);
     }
+    
     setIsLoading(false);
   }, []);
 
@@ -51,7 +60,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (email === 'demo@example.com' && password === 'password') {
         const newUser = { id: '1', email, name: 'Demo User' };
         setUser(newUser);
+        setIsGuest(false);
         localStorage.setItem('user', JSON.stringify(newUser));
+        localStorage.removeItem('guestMode');
         toast.success('Successfully logged in');
         return true;
       }
@@ -76,7 +87,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       const newUser = { id: Date.now().toString(), email, name };
       setUser(newUser);
+      setIsGuest(false);
       localStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.removeItem('guestMode');
       toast.success('Registration successful');
       return true;
     } catch (error) {
@@ -90,12 +103,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setUser(null);
+    setIsGuest(false);
     localStorage.removeItem('user');
+    localStorage.removeItem('guestMode');
     toast.success('Logged out successfully');
   };
 
+  const continueAsGuest = () => {
+    setIsGuest(true);
+    localStorage.setItem('guestMode', 'true');
+    toast.success('Continuing as guest');
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      register, 
+      logout, 
+      isLoading, 
+      isGuest, 
+      continueAsGuest 
+    }}>
       {children}
     </AuthContext.Provider>
   );

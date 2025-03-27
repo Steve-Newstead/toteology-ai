@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, continueAsGuest } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,6 +20,11 @@ const Login = () => {
     if (success) {
       navigate('/');
     }
+  };
+
+  const handleGuestCheckout = () => {
+    continueAsGuest();
+    navigate('/checkout');
   };
 
   return (
@@ -85,6 +91,27 @@ const Login = () => {
               ) : (
                 'Sign in'
               )}
+            </Button>
+          </div>
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator className="w-full" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+          
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGuestCheckout}
+              className="relative flex w-full justify-center"
+            >
+              <User className="mr-2 h-4 w-4" />
+              Continue as Guest
             </Button>
           </div>
           

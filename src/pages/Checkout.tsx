@@ -10,7 +10,8 @@ import {
   Minus, 
   Trash2, 
   CreditCard,
-  ShieldCheck
+  ShieldCheck,
+  LogIn
 } from "lucide-react";
 import { useCartStore } from "@/store/store";
 import { useAuth } from "@/context/AuthContext";
@@ -39,7 +40,7 @@ type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { items, removeItem, addItem, totalPrice, totalItems, clearCart } = useCartStore();
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -139,6 +140,16 @@ const Checkout = () => {
         >
           <h1 className="heading-2 mb-4">Checkout</h1>
           <p className="body-text">Complete your order and get ready to enjoy your custom tote bag.</p>
+          
+          {isGuest && (
+            <div className="mt-4 p-3 bg-muted rounded-lg flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">You're checking out as a guest</p>
+              <Button variant="outline" size="sm" onClick={() => navigate('/login')}>
+                <LogIn className="h-4 w-4 mr-2" />
+                Sign in
+              </Button>
+            </div>
+          )}
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 max-w-6xl mx-auto">
