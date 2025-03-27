@@ -3,14 +3,23 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Menu, X } from "lucide-react";
+import { ShoppingBag, Menu, X, User, LogOut } from "lucide-react";
 import { useCartStore } from "@/store/store";
+import { useAuth } from "@/context/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const totalItems = useCartStore((state) => state.totalItems());
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,6 +38,10 @@ const Navbar = () => {
     { title: "Home", path: "/" },
     { title: "Create Your Tote", path: "/customize" },
   ];
+
+  const handleLogout = () => {
+    logout();
+  };
 
   const navbarVariants = {
     initial: { opacity: 0, y: -20 },
@@ -103,6 +116,41 @@ const Navbar = () => {
             </Button>
           </Link>
 
+          {/* User Account Menu */}
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative"
+                  aria-label="User account"
+                >
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link to="/account" className="flex items-center gap-2 cursor-pointer w-full">
+                    <User className="h-4 w-4" />
+                    <span>My Account</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer">
+                  <LogOut className="h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/login">
+              <Button variant="ghost" size="sm">
+                Sign in
+              </Button>
+            </Link>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -152,6 +200,32 @@ const Navbar = () => {
                 {item.title}
               </Link>
             ))}
+            
+            {user ? (
+              <>
+                <Link
+                  to="/account"
+                  className="text-lg font-medium transition-colors hover:text-primary text-muted-foreground flex items-center gap-2"
+                >
+                  <User className="h-5 w-5" />
+                  My Account
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-lg font-medium transition-colors hover:text-primary text-muted-foreground flex items-center gap-2"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Log out
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="text-lg font-medium transition-colors hover:text-primary text-muted-foreground"
+              >
+                Sign in
+              </Link>
+            )}
           </nav>
         </div>
       </motion.div>
