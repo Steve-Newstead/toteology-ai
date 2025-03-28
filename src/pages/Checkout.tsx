@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import {
   ShieldCheck,
   LogIn
 } from "lucide-react";
-import { useCartStore, useCheckoutStore } from "@/store/store";
+import { useCartStore, useCheckoutStore } from "@/store";  // Updated import path
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { processPayment } from "@/services/stripeService";
