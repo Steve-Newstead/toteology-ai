@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Info } from "lucide-react";
 import ToteBagPreview from "@/components/ToteBagPreview";
 import PromptInput from "@/components/PromptInput";
-import { useToteStore } from "@/store/store";
+import { useToteStore } from "@/store"; // Updated import path
 import { toast } from "sonner";
 
 // Create a simple motion component replacement to avoid dependency issues

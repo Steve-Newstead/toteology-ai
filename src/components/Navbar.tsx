@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Menu, X, User, LogOut } from "lucide-react";
-import { useCartStore } from "@/store/store";
+import { useCartStore } from "@/store"; // Updated import path
 import { useAuth } from "@/context/AuthContext";
 import {
   DropdownMenu,

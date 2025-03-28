@@ -1,6 +1,6 @@
 
 import { useState, FormEvent } from "react";
-import { useToteStore } from "@/store/store";
+import { useToteStore } from "@/store"; // Updated import path
 import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

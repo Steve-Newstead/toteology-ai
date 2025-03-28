@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, ArrowLeft, RefreshCcw } from "lucide-react";
 import ToteBagPreview from "@/components/ToteBagPreview";
-import { useToteStore, useCartStore, CartItem } from "@/store/store";
+import { useToteStore, useCartStore } from "@/store"; // Updated import path
+import { CartItem } from "@/store/cartStore"; // Direct import of the type
 import { toast } from "sonner";
 
 const Preview = () => {
