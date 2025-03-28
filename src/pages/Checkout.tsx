@@ -15,7 +15,7 @@ import {
 import { useCartStore } from "@/store";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { processPayment } from "@/services/stripeService";
+import { processPayment, createMockPaymentIntent } from "@/services/stripeService";
 import { StripePaymentWrapper } from "@/components/StripePaymentElements";
 import { placeOrder } from "@/services/printifyService";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -44,6 +44,7 @@ const Checkout = () => {
   const [clientSecret, setClientSecret] = useState("");
   const [showStripeForm, setShowStripeForm] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
+  const [isInitializingPayment, setIsInitializingPayment] = useState(false);
   
   // Initialize form with react-hook-form
   const form = useForm<CheckoutFormValues>({
@@ -68,18 +69,33 @@ const Checkout = () => {
     
     if (paymentIntentStatus === 'succeeded') {
       // Handle payment success from redirect flow
-      handlePaymentSuccess();
+      toast.success("Payment successful! Thank you for your purchase.");
+      setPaymentComplete(true);
     }
   }, []);
 
   // Initialize Stripe with a mock client secret
-  // In a real implementation, this would come from your backend
   useEffect(() => {
-    // Create a mock client secret for demo purposes
-    // In a real app, you would fetch this from your server
-    const mockClientSecret = `pi_${Math.random().toString(36).substring(2)}_secret_${Math.random().toString(36).substring(2)}`;
-    setClientSecret(mockClientSecret);
-  }, []);
+    const initializePayment = async () => {
+      if (showStripeForm && !clientSecret && !isInitializingPayment) {
+        setIsInitializingPayment(true);
+        try {
+          // Calculate total amount including shipping and tax
+          const totalAmount = totalPrice() + 5.99 + totalPrice() * 0.07;
+          // Create a mock payment intent
+          const secret = await createMockPaymentIntent(totalAmount);
+          setClientSecret(secret);
+        } catch (error) {
+          console.error("Error initializing payment:", error);
+          toast.error("Unable to initialize payment. Please try again.");
+        } finally {
+          setIsInitializingPayment(false);
+        }
+      }
+    };
+    
+    initializePayment();
+  }, [showStripeForm, clientSecret, isInitializingPayment, totalPrice]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -146,7 +162,6 @@ const Checkout = () => {
         });
         
         if (orderResult.success) {
-          toast.success("Payment successful! Thank you for your purchase.");
           setPaymentComplete(true);
           // Don't clear cart or navigate away until user confirms
         } else {
@@ -164,9 +179,10 @@ const Checkout = () => {
   const handlePaymentComplete = (paymentResult: any) => {
     // Only process the order if payment was successful
     if (paymentResult.paymentIntent?.status === 'succeeded') {
+      toast.success("Payment successful! Thank you for your purchase.");
       handlePaymentSuccess();
     } else {
-      // If not redirected, process the order here
+      // Handle other payment results
       handleProcessOrder(paymentResult);
     }
   };
@@ -544,9 +560,9 @@ const Checkout = () => {
                         type="submit"
                         size="lg"
                         className="w-full"
-                        disabled={isProcessing}
+                        disabled={isProcessing || isInitializingPayment}
                       >
-                        Continue to Payment <CreditCard className="ml-2 h-4 w-4" />
+                        {isInitializingPayment ? 'Initializing...' : 'Continue to Payment'} <CreditCard className="ml-2 h-4 w-4" />
                       </Button>
                     </div>
                   )}

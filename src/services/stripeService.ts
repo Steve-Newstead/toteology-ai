@@ -5,9 +5,15 @@ import { loadStripe } from '@stripe/stripe-js';
 // This is a publishable key, so it's safe to include in the client-side code
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51R7OuiIZcV6xBCiCu9ekAPSfvD5xyqUnYA59pZcqkFQXnIWsiPRHkzynHTjit2b60LRDV5BsgBjW79d2TFjg3VJL00sAoNlbUA';
 
+// Initialize Stripe with caching
+let stripePromise: Promise<any> | null = null;
+
 // Initialize Stripe
 export const getStripePromise = () => {
-  return loadStripe(STRIPE_PUBLISHABLE_KEY);
+  if (!stripePromise) {
+    stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
+  }
+  return stripePromise;
 };
 
 // Create a payment session for checkout
@@ -86,6 +92,21 @@ export const redirectToCheckout = async (sessionId: string) => {
   
   // For demo purposes, we'll just return success
   return { success: true };
+};
+
+// Create a mock payment intent client secret
+// In a real implementation, this would come from your backend
+export const createMockPaymentIntent = async (amount: number, currency = 'usd') => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // Generate a mock client secret that looks similar to a real one
+  // Real client secrets are created server-side and start with "pi_"
+  const mockClientSecret = `pi_${Math.random().toString(36).substring(2)}_secret_${Math.random().toString(36).substring(2)}`;
+  
+  console.log(`Created mock payment intent for ${amount} ${currency}: ${mockClientSecret}`);
+  
+  return mockClientSecret;
 };
 
 // Configuration for Stripe Payment Element with Apple Pay and Google Pay
