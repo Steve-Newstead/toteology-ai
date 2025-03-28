@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import {
   ShieldCheck,
   LogIn
 } from "lucide-react";
-import { useCartStore } from "@/store/store";
+import { useCartStore, useCheckoutStore } from "@/store/store";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { processPayment } from "@/services/stripeService";
@@ -66,73 +65,6 @@ const Checkout = () => {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleCheckout = async (values: CheckoutFormValues) => {
-    try {
-      setIsProcessing(true);
-      
-      // Mock payment method ID (in production this would come from Stripe Elements)
-      const mockPaymentMethodId = `pm_${Math.random().toString(36).substring(2, 15)}`;
-      
-      // Process the payment
-      const paymentResult = await processPayment(
-        mockPaymentMethodId,
-        totalPrice() + 5.99 + totalPrice() * 0.07,
-        values.email
-      );
-      
-      if (paymentResult.success) {
-        // Process the order with the first item in cart
-        if (items.length > 0) {
-          const item = items[0];
-          
-          const orderResult = await placeOrder({
-            product: {
-              id: "tote-bag-standard",
-              variants: [{ id: item.variantId || "tote-bag-standard-natural" }]
-            },
-            designUrl: item.imageUrl,
-            shippingInfo: {
-              address: {
-                name: `${values.firstName} ${values.lastName}`,
-                street: values.address,
-                city: values.city,
-                state: '', // Not collected in the current form
-                zipCode: values.postalCode,
-                country: values.country
-              },
-              method: "standard"
-            },
-            billingInfo: {
-              sameAsShipping: true,
-              address: null,
-              paymentMethod: {
-                type: 'credit_card',
-                cardNumber: values.cardNumber,
-                cardExpiry: values.expiration,
-                cardCvc: values.cvc
-              }
-            }
-          });
-          
-          if (orderResult.success) {
-            toast.success("Payment successful! Thank you for your purchase.");
-            clearCart();
-            navigate("/");
-          } else {
-            toast.error("There was a problem with your order. Please try again.");
-          }
-        }
-      } else {
-        toast.error("Payment failed. Please try again.");
-      }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      toast.error("An error occurred while processing your payment.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -148,6 +80,86 @@ const Checkout = () => {
     
     const updatedItem = { ...item, quantity: item.quantity + change };
     addItem(updatedItem);
+  };
+
+  const handleCheckout = async (values: CheckoutFormValues) => {
+    try {
+      setIsProcessing(true);
+      
+      // Create a Stripe Checkout session
+      const session = await useCheckoutStore.getState().createCheckoutSession(
+        items,
+        values.email
+      );
+      
+      if (session && session.url) {
+        // In a real implementation, we would redirect to the Stripe checkout page
+        // window.location.href = session.url;
+        
+        // For now, we'll continue with the mock flow
+        // Process the payment
+        const mockPaymentMethodId = `pm_${Math.random().toString(36).substring(2, 15)}`;
+        
+        const paymentResult = await processPayment(
+          mockPaymentMethodId,
+          totalPrice() + 5.99 + totalPrice() * 0.07,
+          values.email
+        );
+        
+        if (paymentResult.success) {
+          // Process the order with the first item in cart
+          if (items.length > 0) {
+            const item = items[0];
+            
+            const orderResult = await placeOrder({
+              product: {
+                id: "tote-bag-standard",
+                variants: [{ id: item.variantId || "tote-bag-standard-natural" }]
+              },
+              designUrl: item.imageUrl,
+              shippingInfo: {
+                address: {
+                  name: `${values.firstName} ${values.lastName}`,
+                  street: values.address,
+                  city: values.city,
+                  state: '', // Not collected in the current form
+                  zipCode: values.postalCode,
+                  country: values.country
+                },
+                method: "standard"
+              },
+              billingInfo: {
+                sameAsShipping: true,
+                address: null,
+                paymentMethod: {
+                  type: 'credit_card',
+                  cardNumber: values.cardNumber,
+                  cardExpiry: values.expiration,
+                  cardCvc: values.cvc
+                }
+              }
+            });
+            
+            if (orderResult.success) {
+              toast.success("Payment successful! Thank you for your purchase.");
+              clearCart();
+              navigate("/");
+            } else {
+              toast.error("There was a problem with your order. Please try again.");
+            }
+          }
+        } else {
+          toast.error("Payment failed. Please try again.");
+        }
+      } else {
+        toast.error("Failed to create checkout session");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error("An error occurred while processing your payment.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (items.length === 0) {

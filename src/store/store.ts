@@ -1,7 +1,6 @@
-
 import { create } from 'zustand';
 import { placeOrder, getShippingRates } from '@/services/printifyService';
-import { processPayment } from '@/services/stripeService';
+import { processPayment, createCheckoutSession, redirectToCheckout } from '@/services/stripeService';
 import { toast } from 'sonner';
 
 interface ToteState {
@@ -134,6 +133,7 @@ interface CheckoutState {
   setShippingInfo: (info: Partial<CheckoutState['shippingInfo']>) => void;
   setBillingInfo: (info: Partial<CheckoutState['billingInfo']>) => void;
   processPayment: (paymentMethodId: string, amount: number, email: string) => Promise<any>;
+  createCheckoutSession: (items: any[], email: string) => Promise<any>;
   placeOrder: () => Promise<void>;
   reset: () => void;
 }
@@ -166,6 +166,18 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       const result = await processPayment(paymentMethodId, amount, email);
       set({ isProcessing: false });
       return result;
+    } catch (error) {
+      set({ isProcessing: false });
+      throw error;
+    }
+  },
+  createCheckoutSession: async (items, email) => {
+    set({ isProcessing: true });
+    try {
+      // Create a checkout session with Stripe
+      const session = await createCheckoutSession(items, email);
+      set({ isProcessing: false });
+      return session;
     } catch (error) {
       set({ isProcessing: false });
       throw error;
