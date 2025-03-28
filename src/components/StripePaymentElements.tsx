@@ -31,7 +31,7 @@ export const StripePaymentElementWrapper: React.FC<StripePaymentElementWrapperPr
     const result = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: window.location.origin,
+        return_url: `${window.location.origin}/checkout`, // Ensure we return to checkout
         payment_method_data: {
           billing_details: {
             // The billing details will be populated from Apple Pay / Google Pay
@@ -43,7 +43,7 @@ export const StripePaymentElementWrapper: React.FC<StripePaymentElementWrapperPr
     });
 
     if (result.error) {
-      console.error(result.error.message);
+      console.error('Payment error:', result.error.message);
     } else {
       // Check if we can get billing address from the completed payment
       if (result.paymentIntent && result.paymentIntent.payment_method) {
@@ -62,7 +62,7 @@ export const StripePaymentElementWrapper: React.FC<StripePaymentElementWrapperPr
         onAddressChange(mockAddress);
       }
       
-      // Call the completion callback
+      // Call the completion callback with the result
       onPaymentComplete(result);
     }
   };

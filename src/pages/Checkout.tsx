@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   LogIn
 } from "lucide-react";
-import { useCartStore, useCheckoutStore } from "@/store";
+import { useCartStore } from "@/store";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { processPayment } from "@/services/stripeService";
@@ -43,6 +43,7 @@ const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState("");
   const [showStripeForm, setShowStripeForm] = useState(false);
+  const [paymentComplete, setPaymentComplete] = useState(false);
   
   // Initialize form with react-hook-form
   const form = useForm<CheckoutFormValues>({
@@ -60,6 +61,15 @@ const Checkout = () => {
   
   useEffect(() => {
     window.scrollTo(0, 0);
+    
+    // Check if the URL contains payment success parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentIntentStatus = urlParams.get('payment_intent_status');
+    
+    if (paymentIntentStatus === 'succeeded') {
+      // Handle payment success from redirect flow
+      handlePaymentSuccess();
+    }
   }, []);
 
   // Initialize Stripe with a mock client secret
@@ -100,9 +110,65 @@ const Checkout = () => {
     toast.success("Address updated from payment information");
   };
 
+  const handlePaymentSuccess = async () => {
+    try {
+      setIsProcessing(true);
+      
+      // Process the order with the first item in cart
+      if (items.length > 0) {
+        const values = form.getValues();
+        const item = items[0];
+        
+        const orderResult = await placeOrder({
+          product: {
+            id: "tote-bag-standard",
+            variants: [{ id: item.variantId || "tote-bag-standard-natural" }]
+          },
+          designUrl: item.imageUrl,
+          shippingInfo: {
+            address: {
+              name: `${values.firstName} ${values.lastName}`,
+              street: values.address,
+              city: values.city,
+              state: '', // Not collected in the current form
+              zipCode: values.postalCode,
+              country: values.country
+            },
+            method: "standard"
+          },
+          billingInfo: {
+            sameAsShipping: true,
+            address: null,
+            paymentMethod: {
+              type: 'credit_card'
+            }
+          }
+        });
+        
+        if (orderResult.success) {
+          toast.success("Payment successful! Thank you for your purchase.");
+          setPaymentComplete(true);
+          // Don't clear cart or navigate away until user confirms
+        } else {
+          toast.error("There was a problem with your order. Please try again.");
+        }
+      }
+    } catch (error) {
+      console.error("Order processing error:", error);
+      toast.error("An error occurred while processing your order.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handlePaymentComplete = (paymentResult: any) => {
-    // Process the order after payment is complete
-    handleProcessOrder(paymentResult);
+    // Only process the order if payment was successful
+    if (paymentResult.paymentIntent?.status === 'succeeded') {
+      handlePaymentSuccess();
+    } else {
+      // If not redirected, process the order here
+      handleProcessOrder(paymentResult);
+    }
   };
 
   const handleProcessOrder = async (paymentResult: any) => {
@@ -136,18 +202,14 @@ const Checkout = () => {
             address: null,
             paymentMethod: {
               type: 'credit_card',
-              // We don't need to collect these since Stripe handles it
-              cardNumber: '',
-              cardExpiry: '',
-              cardCvc: ''
             }
           }
         });
         
         if (orderResult.success) {
           toast.success("Payment successful! Thank you for your purchase.");
-          clearCart();
-          navigate("/");
+          setPaymentComplete(true);
+          // Don't immediately clear cart or navigate away
         } else {
           toast.error("There was a problem with your order. Please try again.");
         }
@@ -192,6 +254,33 @@ const Checkout = () => {
       setIsProcessing(false);
     }
   };
+  
+  const finishCheckout = () => {
+    // Only clear cart and navigate away when user explicitly confirms
+    clearCart();
+    navigate("/");
+  };
+
+  if (paymentComplete) {
+    return (
+      <div className="min-h-screen pt-16">
+        <div className="page-container">
+          <div className="max-w-lg mx-auto text-center py-12">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShieldCheck className="h-8 w-8 text-green-600" />
+            </div>
+            <h1 className="heading-2 mb-4">Payment Successful!</h1>
+            <p className="body-text mb-8">
+              Thank you for your purchase. Your order has been placed successfully.
+            </p>
+            <Button size="lg" onClick={finishCheckout}>
+              Return to Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
