@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -16,17 +15,13 @@ import {
 import { useCartStore, useCheckoutStore } from "@/store";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { processPayment, getPaymentElementOptions } from "@/services/stripeService";
+import { processPayment } from "@/services/stripeService";
+import { StripePaymentWrapper } from "@/components/StripePaymentElements";
 import { placeOrder } from "@/services/printifyService";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-
-// Stripe publishable key
-const stripePromise = loadStripe('pk_test_51R7OuiIZcV6xBCiCu9ekAPSfvD5xyqUnYA59pZcqkFQXnIWsiPRHkzynHTjit2b60LRDV5BsgBjW79d2TFjg3VJL00sAoNlbUA');
 
 // Define form schema
 const checkoutFormSchema = z.object({
@@ -40,77 +35,6 @@ const checkoutFormSchema = z.object({
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
-
-// Stripe payment component
-const CheckoutForm = ({ onAddressUpdate, onPaymentComplete }) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setIsProcessing(true);
-
-    // Use confirmPayment to handle the payment
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/order-confirmation`,
-      },
-      redirect: 'if_required',
-    });
-
-    if (error) {
-      setErrorMessage(error.message || 'An error occurred with your payment');
-      setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      // If we get a shipping address from Apple Pay / Google Pay
-      // extract it and pass it to the parent
-      if (paymentIntent.shipping) {
-        const { name, address } = paymentIntent.shipping;
-        onAddressUpdate({
-          name,
-          street: address.line1,
-          city: address.city,
-          state: address.state,
-          zipCode: address.postal_code,
-          country: address.country,
-        });
-      }
-      
-      onPaymentComplete(paymentIntent);
-    }
-  };
-
-  const paymentElementOptions = getPaymentElementOptions();
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <div className="space-y-4">
-        <PaymentElement options={paymentElementOptions} />
-        
-        {errorMessage && (
-          <div className="text-sm text-destructive">{errorMessage}</div>
-        )}
-        
-        <Button
-          type="submit"
-          size="lg"
-          className="w-full"
-          disabled={isProcessing || !stripe}
-        >
-          {isProcessing ? "Processing..." : "Pay Now"} <CreditCard className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    </form>
-  );
-};
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -164,7 +88,7 @@ const Checkout = () => {
     addItem(updatedItem);
   };
 
-  const handleAddressUpdate = (addressData) => {
+  const handleAddressUpdate = (addressData: any) => {
     // Update the form with address data from Apple Pay / Google Pay
     form.setValue('firstName', addressData.name.split(' ')[0] || '');
     form.setValue('lastName', addressData.name.split(' ').slice(1).join(' ') || '');
@@ -176,12 +100,12 @@ const Checkout = () => {
     toast.success("Address updated from payment information");
   };
 
-  const handlePaymentComplete = (paymentResult) => {
+  const handlePaymentComplete = (paymentResult: any) => {
     // Process the order after payment is complete
     handleProcessOrder(paymentResult);
   };
 
-  const handleProcessOrder = async (paymentResult) => {
+  const handleProcessOrder = async (paymentResult: any) => {
     try {
       setIsProcessing(true);
       const values = form.getValues();
@@ -513,12 +437,11 @@ const Checkout = () => {
                 
                 <div className="rounded-lg border border-border bg-card p-6 space-y-4">
                   {clientSecret && showStripeForm ? (
-                    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-                      <CheckoutForm 
-                        onAddressUpdate={handleAddressUpdate}
-                        onPaymentComplete={handlePaymentComplete}
-                      />
-                    </Elements>
+                    <StripePaymentWrapper 
+                      clientSecret={clientSecret}
+                      onAddressChange={handleAddressUpdate}
+                      onPaymentComplete={handlePaymentComplete}
+                    />
                   ) : (
                     <div className="space-y-4">
                       <div className="flex items-center mb-4">
