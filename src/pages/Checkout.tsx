@@ -13,15 +13,20 @@ import {
   ShieldCheck,
   LogIn
 } from "lucide-react";
-import { useCartStore, useCheckoutStore } from "@/store";  // Updated import path
+import { useCartStore, useCheckoutStore } from "@/store";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { processPayment } from "@/services/stripeService";
+import { processPayment, getPaymentElementOptions } from "@/services/stripeService";
 import { placeOrder } from "@/services/printifyService";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+// Stripe publishable key
+const stripePromise = loadStripe('pk_test_51R7OuiIZcV6xBCiCu9ekAPSfvD5xyqUnYA59pZcqkFQXnIWsiPRHkzynHTjit2b60LRDV5BsgBjW79d2TFjg3VJL00sAoNlbUA');
 
 // Define form schema
 const checkoutFormSchema = z.object({
@@ -32,18 +37,88 @@ const checkoutFormSchema = z.object({
   city: z.string().min(1, "City is required"),
   postalCode: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
-  cardNumber: z.string().min(1, "Card number is required"),
-  expiration: z.string().min(1, "Expiration date is required"),
-  cvc: z.string().min(1, "CVC is required"),
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
+
+// Stripe payment component
+const CheckoutForm = ({ onAddressUpdate, onPaymentComplete }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessing(true);
+
+    // Use confirmPayment to handle the payment
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/order-confirmation`,
+      },
+      redirect: 'if_required',
+    });
+
+    if (error) {
+      setErrorMessage(error.message || 'An error occurred with your payment');
+      setIsProcessing(false);
+    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+      // If we get a shipping address from Apple Pay / Google Pay
+      // extract it and pass it to the parent
+      if (paymentIntent.shipping) {
+        const { name, address } = paymentIntent.shipping;
+        onAddressUpdate({
+          name,
+          street: address.line1,
+          city: address.city,
+          state: address.state,
+          zipCode: address.postal_code,
+          country: address.country,
+        });
+      }
+      
+      onPaymentComplete(paymentIntent);
+    }
+  };
+
+  const paymentElementOptions = getPaymentElementOptions();
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="space-y-4">
+        <PaymentElement options={paymentElementOptions} />
+        
+        {errorMessage && (
+          <div className="text-sm text-destructive">{errorMessage}</div>
+        )}
+        
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={isProcessing || !stripe}
+        >
+          {isProcessing ? "Processing..." : "Pay Now"} <CreditCard className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </form>
+  );
+};
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { user, isGuest } = useAuth();
   const { items, removeItem, addItem, totalPrice, totalItems, clearCart } = useCartStore();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [clientSecret, setClientSecret] = useState("");
+  const [showStripeForm, setShowStripeForm] = useState(false);
   
   // Initialize form with react-hook-form
   const form = useForm<CheckoutFormValues>({
@@ -56,14 +131,20 @@ const Checkout = () => {
       city: "",
       postalCode: "",
       country: "",
-      cardNumber: "",
-      expiration: "",
-      cvc: "",
     },
   });
   
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, []);
+
+  // Initialize Stripe with a mock client secret
+  // In a real implementation, this would come from your backend
+  useEffect(() => {
+    // Create a mock client secret for demo purposes
+    // In a real app, you would fetch this from your server
+    const mockClientSecret = `pi_${Math.random().toString(36).substring(2)}_secret_${Math.random().toString(36).substring(2)}`;
+    setClientSecret(mockClientSecret);
   }, []);
 
   const formatPrice = (price: number) => {
@@ -83,77 +164,102 @@ const Checkout = () => {
     addItem(updatedItem);
   };
 
+  const handleAddressUpdate = (addressData) => {
+    // Update the form with address data from Apple Pay / Google Pay
+    form.setValue('firstName', addressData.name.split(' ')[0] || '');
+    form.setValue('lastName', addressData.name.split(' ').slice(1).join(' ') || '');
+    form.setValue('address', addressData.street);
+    form.setValue('city', addressData.city);
+    form.setValue('postalCode', addressData.zipCode);
+    form.setValue('country', addressData.country);
+    
+    toast.success("Address updated from payment information");
+  };
+
+  const handlePaymentComplete = (paymentResult) => {
+    // Process the order after payment is complete
+    handleProcessOrder(paymentResult);
+  };
+
+  const handleProcessOrder = async (paymentResult) => {
+    try {
+      setIsProcessing(true);
+      const values = form.getValues();
+      
+      // Process the order with the first item in cart
+      if (items.length > 0) {
+        const item = items[0];
+        
+        const orderResult = await placeOrder({
+          product: {
+            id: "tote-bag-standard",
+            variants: [{ id: item.variantId || "tote-bag-standard-natural" }]
+          },
+          designUrl: item.imageUrl,
+          shippingInfo: {
+            address: {
+              name: `${values.firstName} ${values.lastName}`,
+              street: values.address,
+              city: values.city,
+              state: '', // Not collected in the current form
+              zipCode: values.postalCode,
+              country: values.country
+            },
+            method: "standard"
+          },
+          billingInfo: {
+            sameAsShipping: true,
+            address: null,
+            paymentMethod: {
+              type: 'credit_card',
+              // We don't need to collect these since Stripe handles it
+              cardNumber: '',
+              cardExpiry: '',
+              cardCvc: ''
+            }
+          }
+        });
+        
+        if (orderResult.success) {
+          toast.success("Payment successful! Thank you for your purchase.");
+          clearCart();
+          navigate("/");
+        } else {
+          toast.error("There was a problem with your order. Please try again.");
+        }
+      }
+    } catch (error) {
+      console.error("Order processing error:", error);
+      toast.error("An error occurred while processing your order.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleCheckout = async (values: CheckoutFormValues) => {
+    if (!showStripeForm) {
+      setShowStripeForm(true);
+      return;
+    }
+    
+    // This is only used if the user skips the Stripe form
+    // In practice, they should always use the Stripe form
     try {
       setIsProcessing(true);
       
-      // Create a Stripe Checkout session
-      const session = await useCheckoutStore.getState().createCheckoutSession(
-        items,
+      // For demo purposes we'll create a mock payment
+      const mockPaymentMethodId = `pm_${Math.random().toString(36).substring(2, 15)}`;
+      
+      const paymentResult = await processPayment(
+        mockPaymentMethodId,
+        totalPrice() + 5.99 + totalPrice() * 0.07,
         values.email
       );
       
-      if (session && session.url) {
-        // In a real implementation, we would redirect to the Stripe checkout page
-        // window.location.href = session.url;
-        
-        // For now, we'll continue with the mock flow
-        // Process the payment
-        const mockPaymentMethodId = `pm_${Math.random().toString(36).substring(2, 15)}`;
-        
-        const paymentResult = await processPayment(
-          mockPaymentMethodId,
-          totalPrice() + 5.99 + totalPrice() * 0.07,
-          values.email
-        );
-        
-        if (paymentResult.success) {
-          // Process the order with the first item in cart
-          if (items.length > 0) {
-            const item = items[0];
-            
-            const orderResult = await placeOrder({
-              product: {
-                id: "tote-bag-standard",
-                variants: [{ id: item.variantId || "tote-bag-standard-natural" }]
-              },
-              designUrl: item.imageUrl,
-              shippingInfo: {
-                address: {
-                  name: `${values.firstName} ${values.lastName}`,
-                  street: values.address,
-                  city: values.city,
-                  state: '', // Not collected in the current form
-                  zipCode: values.postalCode,
-                  country: values.country
-                },
-                method: "standard"
-              },
-              billingInfo: {
-                sameAsShipping: true,
-                address: null,
-                paymentMethod: {
-                  type: 'credit_card',
-                  cardNumber: values.cardNumber,
-                  cardExpiry: values.expiration,
-                  cardCvc: values.cvc
-                }
-              }
-            });
-            
-            if (orderResult.success) {
-              toast.success("Payment successful! Thank you for your purchase.");
-              clearCart();
-              navigate("/");
-            } else {
-              toast.error("There was a problem with your order. Please try again.");
-            }
-          }
-        } else {
-          toast.error("Payment failed. Please try again.");
-        }
+      if (paymentResult.success) {
+        await handleProcessOrder(paymentResult);
       } else {
-        toast.error("Failed to create checkout session");
+        toast.error("Payment failed. Please try again.");
       }
     } catch (error) {
       console.error("Checkout error:", error);
@@ -403,78 +509,48 @@ const Checkout = () => {
                   />
                 </div>
                 
-                <h2 className="heading-3">Payment Information</h2>
+                <h2 className="heading-3">Payment</h2>
                 
                 <div className="rounded-lg border border-border bg-card p-6 space-y-4">
-                  <div className="flex items-center mb-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium">Secure payment via Stripe</span>
-                      <img src="https://cdn.jsdelivr.net/gh/stephenhutchings/typicons.font@v2.0.7/src/svg/lock-closed.svg" alt="secure" className="h-4 w-4" />
+                  {clientSecret && showStripeForm ? (
+                    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                      <CheckoutForm 
+                        onAddressUpdate={handleAddressUpdate}
+                        onPaymentComplete={handlePaymentComplete}
+                      />
+                    </Elements>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center mb-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium">Secure payment via Stripe</span>
+                          <ShieldCheck className="h-4 w-4" />
+                        </div>
+                      </div>
+                      
+                      <Button
+                        type="submit"
+                        size="lg"
+                        className="w-full"
+                        disabled={isProcessing}
+                      >
+                        Continue to Payment <CreditCard className="ml-2 h-4 w-4" />
+                      </Button>
                     </div>
+                  )}
+                  
+                  <div className="flex justify-center space-x-2 mt-4">
+                    <img src="https://www.vectorlogo.zone/logos/visa/visa-icon.svg" alt="visa" className="h-6" />
+                    <img src="https://www.vectorlogo.zone/logos/mastercard/mastercard-icon.svg" alt="mastercard" className="h-6" />
+                    <img src="https://www.vectorlogo.zone/logos/americanexpress/americanexpress-icon.svg" alt="amex" className="h-6" />
+                    <img src="https://www.vectorlogo.zone/logos/apple/apple-icon.svg" alt="apple pay" className="h-6" />
+                    <img src="https://www.vectorlogo.zone/logos/google/google-icon.svg" alt="google pay" className="h-6" />
                   </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="cardNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Card Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="1234 5678 9012 3456" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="expiration"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Expiration Date</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="MM/YY" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="cvc"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>CVC</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="123" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <ShieldCheck className="h-5 w-5" />
+                    <span>All payment information is encrypted and secure</span>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <ShieldCheck className="h-5 w-5" />
-                  <span>All payment information is encrypted and secure</span>
-                </div>
-                
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full"
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? "Processing..." : "Complete Order"} <CreditCard className="ml-2 h-4 w-4" />
-                </Button>
-                
-                <div className="flex justify-center space-x-2 mt-4">
-                  <img src="https://www.vectorlogo.zone/logos/visa/visa-icon.svg" alt="visa" className="h-6" />
-                  <img src="https://www.vectorlogo.zone/logos/mastercard/mastercard-icon.svg" alt="mastercard" className="h-6" />
-                  <img src="https://www.vectorlogo.zone/logos/americanexpress/americanexpress-icon.svg" alt="amex" className="h-6" />
                 </div>
               </form>
             </Form>
