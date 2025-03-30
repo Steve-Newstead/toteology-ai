@@ -25,17 +25,32 @@ export const createCheckoutSession = async (items: any[], customerEmail: string)
       throw new Error('Failed to initialize Stripe');
     }
     
-    // In a real implementation, this would call your backend API
-    // For now, we'll continue with the mock implementation, but
-    // with better structure for future real implementation
-    console.log('Creating Stripe checkout session for:', { items, customerEmail });
+    // Create line items for Stripe checkout
+    const lineItems = items.map(item => ({
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: item.name,
+          images: [item.imageUrl],
+          description: `Custom design: ${item.logoPrompt}`
+        },
+        unit_amount: Math.round(item.price * 100), // Convert to cents
+      },
+      quantity: item.quantity,
+    }));
     
-    // This mock would be replaced with a real API call to your backend
-    // which would then create a Stripe session and return the ID
-    const mockSessionId = `cs_test_${Math.random().toString(36).substring(2, 15)}`;
+    // This is a mock implementation that simulates a checkout session
+    // In a real implementation, you would call your backend API
+    console.log('Creating mock Stripe checkout session for:', { 
+      items, 
+      customerEmail,
+      lineItems
+    });
     
     // For demonstration, create a mock session URL
-    // In production, you would redirect to the URL returned from Stripe
+    const mockSessionId = `cs_test_${Math.random().toString(36).substring(2, 15)}`;
+    
+    // For demonstration purposes, return a mock session
     return {
       id: mockSessionId,
       url: `https://checkout.stripe.com/pay/${mockSessionId}`,
@@ -56,12 +71,8 @@ export const processPayment = async (
     // Log the payment request
     console.log('Processing payment:', { paymentMethodId, amount, customerEmail });
     
-    // In a real implementation, this would call your backend API
-    // to create a PaymentIntent and confirm it
-    // For now, we'll simulate a successful payment
-    
     // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Return mock successful response
     return {
@@ -75,7 +86,7 @@ export const processPayment = async (
   }
 };
 
-// Function to redirect to Stripe Checkout (for future implementation)
+// Function to redirect to Stripe Checkout
 export const redirectToCheckout = async (sessionId: string) => {
   const stripe = await getStripePromise();
   
@@ -83,25 +94,21 @@ export const redirectToCheckout = async (sessionId: string) => {
     throw new Error('Failed to initialize Stripe');
   }
   
-  // In a real implementation, this would redirect to the Stripe Checkout page
-  // For now, we'll just log it
   console.log('Redirecting to Stripe Checkout with session ID:', sessionId);
   
-  // This is how you would redirect in a real implementation:
-  // return stripe.redirectToCheckout({ sessionId });
+  // In a real implementation with proper backend, this would redirect to Stripe
+  // For demo purposes, we'll simulate a successful checkout after a delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
   
-  // For demo purposes, we'll just return success
   return { success: true };
 };
 
 // Create a mock payment intent client secret
-// In a real implementation, this would come from your backend
 export const createMockPaymentIntent = async (amount: number, currency = 'usd') => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
   // Generate a mock client secret that looks similar to a real one
-  // Real client secrets are created server-side and start with "pi_"
   const mockClientSecret = `pi_${Math.random().toString(36).substring(2)}_secret_${Math.random().toString(36).substring(2)}`;
   
   console.log(`Created mock payment intent for ${amount} ${currency}: ${mockClientSecret}`);

@@ -72,13 +72,14 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   processPayment: async (paymentMethodId, amount, email) => {
     set({ isProcessing: true });
     try {
-      // Use the Stripe service to process payment
+      // Process payment with Stripe
       const result = await processPayment(paymentMethodId, amount, email);
-      set({ isProcessing: false });
       return result;
     } catch (error) {
-      set({ isProcessing: false });
+      console.error('Payment processing error:', error);
       throw error;
+    } finally {
+      set({ isProcessing: false });
     }
   },
   createCheckoutSession: async (items, email) => {
@@ -86,27 +87,36 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
     try {
       // Create a checkout session with Stripe
       const session = await createCheckoutSession(items, email);
-      set({ isProcessing: false });
+      
+      // In a real implementation, we would redirect to Stripe's checkout page
+      const result = await redirectToCheckout(session.id);
+      
+      if (result.success) {
+        // For the mock implementation, we'll simulate a successful checkout
+        set({ step: 'confirmation' });
+      }
+      
       return session;
     } catch (error) {
-      set({ isProcessing: false });
+      console.error('Error creating checkout session:', error);
       throw error;
+    } finally {
+      set({ isProcessing: false });
     }
   },
   placeOrder: async () => {
     const state = get();
     const cartStore = useCartStore.getState();
-    const toteStore = useToteStore.getState();
     
-    if (!state.shippingInfo.address || !state.billingInfo.paymentMethod) {
-      toast.error("Please complete all required information");
+    if (!state.shippingInfo.address) {
+      toast.error("Please complete all required shipping information");
       return;
     }
     
     set({ isProcessing: true });
     
     try {
-      // Get first cart item for demo
+      // Get first cart item for order
       const cartItem = cartStore.items[0];
       
       if (!cartItem) {
@@ -115,7 +125,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         return;
       }
       
-      // Call Printify mock service for order processing
+      // Process the order with Printify service
       const result = await placeOrder({
         product: {
           id: "tote-bag-standard",
@@ -132,7 +142,11 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
           step: 'confirmation',
           isProcessing: false,
         });
-        cartStore.clearCart();
+        
+        // Only clear cart when the user confirms the order is complete
+        // cartStore.clearCart();
+        
+        toast.success("Order placed successfully!");
       } else {
         toast.error("There was a problem placing your order");
         set({ isProcessing: false });

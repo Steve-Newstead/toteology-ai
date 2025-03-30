@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, continueAsGuest } = useAuth();
   const { items, removeItem, addItem, totalPrice, totalItems, clearCart } = useCartStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState("");
@@ -72,7 +73,12 @@ const Checkout = () => {
       toast.success("Payment successful! Thank you for your purchase.");
       setPaymentComplete(true);
     }
-  }, []);
+    
+    // If user is not logged in and not in guest mode, continue as guest automatically
+    if (!user && !isGuest) {
+      continueAsGuest();
+    }
+  }, [user, isGuest, continueAsGuest]);
 
   // Initialize Stripe with a mock client secret
   useEffect(() => {
@@ -97,6 +103,7 @@ const Checkout = () => {
     initializePayment();
   }, [showStripeForm, clientSecret, isInitializingPayment, totalPrice]);
 
+  // Format price to USD
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -104,6 +111,7 @@ const Checkout = () => {
     }).format(price);
   };
 
+  // Handle quantity changes
   const handleQuantityChange = (item: any, change: number) => {
     if (item.quantity + change < 1) {
       removeItem(item.id);
@@ -114,6 +122,7 @@ const Checkout = () => {
     addItem(updatedItem);
   };
 
+  // Handle address updates from payment methods
   const handleAddressUpdate = (addressData: any) => {
     // Update the form with address data from Apple Pay / Google Pay
     form.setValue('firstName', addressData.name.split(' ')[0] || '');
@@ -126,6 +135,7 @@ const Checkout = () => {
     toast.success("Address updated from payment information");
   };
 
+  // Handle payment success
   const handlePaymentSuccess = async () => {
     try {
       setIsProcessing(true);
@@ -163,7 +173,7 @@ const Checkout = () => {
         
         if (orderResult.success) {
           setPaymentComplete(true);
-          // Don't clear cart or navigate away until user confirms
+          // Don't clear cart until user confirms
         } else {
           toast.error("There was a problem with your order. Please try again.");
         }
@@ -176,6 +186,7 @@ const Checkout = () => {
     }
   };
 
+  // Handle payment completion
   const handlePaymentComplete = (paymentResult: any) => {
     // Only process the order if payment was successful
     if (paymentResult.paymentIntent?.status === 'succeeded') {
@@ -187,6 +198,7 @@ const Checkout = () => {
     }
   };
 
+  // Process the order
   const handleProcessOrder = async (paymentResult: any) => {
     try {
       setIsProcessing(true);
@@ -225,7 +237,6 @@ const Checkout = () => {
         if (orderResult.success) {
           toast.success("Payment successful! Thank you for your purchase.");
           setPaymentComplete(true);
-          // Don't immediately clear cart or navigate away
         } else {
           toast.error("There was a problem with your order. Please try again.");
         }
@@ -238,6 +249,7 @@ const Checkout = () => {
     }
   };
 
+  // Handle checkout form submission
   const handleCheckout = async (values: CheckoutFormValues) => {
     if (!showStripeForm) {
       setShowStripeForm(true);
@@ -245,11 +257,10 @@ const Checkout = () => {
     }
     
     // This is only used if the user skips the Stripe form
-    // In practice, they should always use the Stripe form
     try {
       setIsProcessing(true);
       
-      // For demo purposes we'll create a mock payment
+      // For demo purposes create a mock payment
       const mockPaymentMethodId = `pm_${Math.random().toString(36).substring(2, 15)}`;
       
       const paymentResult = await processPayment(
@@ -271,12 +282,13 @@ const Checkout = () => {
     }
   };
   
+  // Complete checkout and clear cart
   const finishCheckout = () => {
-    // Only clear cart and navigate away when user explicitly confirms
     clearCart();
     navigate("/");
   };
 
+  // Show order confirmation page
   if (paymentComplete) {
     return (
       <div className="min-h-screen pt-16">
@@ -298,6 +310,7 @@ const Checkout = () => {
     );
   }
 
+  // Show empty cart message
   if (items.length === 0) {
     return (
       <div className="min-h-screen pt-16">
@@ -319,6 +332,7 @@ const Checkout = () => {
     );
   }
 
+  // Show checkout form
   return (
     <div className="min-h-screen pt-16">
       <div className="page-container">
@@ -340,6 +354,7 @@ const Checkout = () => {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 max-w-6xl mx-auto">
+          {/* Cart section */}
           <div>
             <div className="space-y-6">
               <h2 className="heading-3">Your Cart</h2>
@@ -431,6 +446,7 @@ const Checkout = () => {
             </div>
           </div>
           
+          {/* Checkout form section */}
           <div>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleCheckout)} className="space-y-6">
